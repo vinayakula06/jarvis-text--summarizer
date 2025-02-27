@@ -30,6 +30,13 @@ except KeyError:
     st.write("Error loading Pipeline from the saved model data.")
     st.stop()
 
+# Debug: Check the Pipeline type and attributes
+if not isinstance(Pipeline, Pipeline):
+    st.write(f"Loaded object is not a Pipeline. Type: {type(Pipeline)}")
+    st.stop()
+else:
+    st.write("Pipeline loaded successfully.")
+
 # Streamlit interface
 st.title("NLP Text Summarizer")
 
@@ -55,6 +62,7 @@ if st.button("Summarize"):
         # Extract CLS token embedding
         try:
             cls_embedding = outputs.last_hidden_state[:, 0, :].numpy()
+            st.write(f"CLS Embedding shape: {cls_embedding.shape}")
         except Exception:
             st.write("Error extracting CLS token embedding.")
             st.stop()
