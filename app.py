@@ -1,21 +1,34 @@
 import streamlit as st
 import torch
 from transformers import BertTokenizer, BertModel
-from sklearn.pipeline import Pipeline  # Import Pipeline from scikit-learn
+from sklearn.pipeline import Pipeline
+import joblib
 
 # Load the full model
 full_model_path = "full_model.pth"
 
-# Safely load the model with weights_only=False (if you trust the source)
-saved_data = torch.load(full_model_path, map_location=torch.device('cpu'), weights_only=False)
+# Load the model safely with weights_only=False (ensure you trust the source)
+try:
+    saved_data = torch.load(full_model_path, map_location=torch.device('cpu'), weights_only=False)
+except Exception:
+    st.write("Error loading model. Please check the model file.")
+    st.stop()
 
 # Load BERT model and tokenizer
 model = BertModel.from_pretrained('bert-base-uncased')
-model.load_state_dict(saved_data['bert_model'], strict=False)
-tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+try:
+    model.load_state_dict(saved_data['bert_model'], strict=False)
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+except Exception:
+    st.write("Error loading BERT components. Please check the model file.")
+    st.stop()
 
 # Load LSA-based classifier
-Pipeline = saved_data['Pipeline']
+try:
+    Pipeline = saved_data['Pipeline']
+except KeyError:
+    st.write("Error loading Pipeline from the saved model data.")
+    st.stop()
 
 # Streamlit interface
 st.title("NLP Text Summarizer")
@@ -25,18 +38,32 @@ text = st.text_area("Enter text to summarize:")
 if st.button("Summarize"):
     if text:
         # Tokenization
-        inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
-        
+        try:
+            inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+        except Exception:
+            st.write("Error during tokenization.")
+            st.stop()
+
         # BERT Model Output
-        with torch.no_grad():
-            outputs = model(**inputs)
-        
+        try:
+            with torch.no_grad():
+                outputs = model(**inputs)
+        except Exception:
+            st.write("Error during BERT model inference.")
+            st.stop()
+
         # Extract CLS token embedding
-        cls_embedding = outputs.last_hidden_state[:, 0, :].numpy()
-        
+        try:
+            cls_embedding = outputs.last_hidden_state[:, 0, :].numpy()
+        except Exception:
+            st.write("Error extracting CLS token embedding.")
+            st.stop()
+
         # Classifier prediction
-        prediction = Pipeline.predict(cls_embedding)
-        
-        st.write("Summary:", prediction.tolist())
+        try:
+            prediction = Pipeline.predict(cls_embedding)
+            st.write("Summary:", prediction.tolist())
+        except Exception:
+            st.write("Error during classification.")
     else:
         st.write("Please enter some text to summarize.")
