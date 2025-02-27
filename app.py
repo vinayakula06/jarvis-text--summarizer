@@ -1,7 +1,6 @@
 import streamlit as st
 import torch
 from transformers import BertTokenizer, BertModel
-from sklearn.pipeline import Pipeline
 import joblib
 
 # Load the full model
@@ -15,27 +14,26 @@ except Exception:
     st.stop()
 
 # Load BERT model and tokenizer
-model = BertModel.from_pretrained('bert-base-uncased')
+model = BertModel.from_pretrained('bert_text_summarizer')
 try:
     model.load_state_dict(saved_data['bert_model'], strict=False)
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    tokenizer = BertTokenizer.from_pretrained('bert_text_summarizer')
 except Exception:
     st.write("Error loading BERT components. Please check the model file.")
     st.stop()
 
 # Load LSA-based classifier
+classifier_path = "lsa_classifier.pkl"
 try:
-    Pipeline = saved_data['Pipeline']
-except KeyError:
-    st.write("Error loading Pipeline from the saved model data.")
+    classifier = joblib.load(classifier_path)
+    if not hasattr(classifier, 'predict'):
+        st.write("Loaded object is not a valid classifier.")
+        st.stop()
+    else:
+        st.write("Classifier loaded successfully.")
+except Exception:
+    st.write("Error loading LSA-based classifier from the saved model data.")
     st.stop()
-
-# Debug: Check the Pipeline type and attributes
-if not isinstance(Pipeline, Pipeline):
-    st.write(f"Loaded object is not a Pipeline. Type: {type(Pipeline)}")
-    st.stop()
-else:
-    st.write("Pipeline loaded successfully.")
 
 # Streamlit interface
 st.title("NLP Text Summarizer")
@@ -69,7 +67,7 @@ if st.button("Summarize"):
 
         # Classifier prediction
         try:
-            prediction = Pipeline.predict(cls_embedding)
+            prediction = classifier.predict(cls_embedding)
             st.write("Summary:", prediction.tolist())
         except Exception:
             st.write("Error during classification.")
