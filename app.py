@@ -2,8 +2,6 @@ import streamlit as st
 import torch
 from transformers import BertTokenizer, BertModel
 from sklearn.pipeline import Pipeline  # Import Pipeline from scikit-learn
-import joblib
-from flask import Flask, request, jsonify, send_from_directory
 
 # Load the full model
 full_model_path = "full_model.pth"
