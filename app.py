@@ -4,7 +4,7 @@ from transformers import BertTokenizer, BertModel
 import joblib
 
 # Load the full model
-full_model_path = "full_model.pth"
+full_model_path = "bert_text_summarizer/full_model.pth"
 
 # Load the model safely with weights_only=False (ensure you trust the source)
 try:
@@ -23,7 +23,7 @@ except Exception:
     st.stop()
 
 # Load LSA-based classifier
-classifier_path = "lsa_classifier.pkl"
+classifier_path = "bert_text_summarizer/lsa_classifier.pkl"
 try:
     classifier = joblib.load(classifier_path)
     if not hasattr(classifier, 'predict'):
