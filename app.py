@@ -2,10 +2,13 @@ import torch
 from transformers import BertTokenizer, BertModel
 import joblib
 from flask import Flask, request, jsonify, send_from_directory
+from sklearn.pipeline import Pipeline  # Import Pipeline from scikit-learn
 
 # Load the full model
 full_model_path = "full_model.pth"
-saved_data = torch.load(full_model_path, map_location=torch.device('cpu'))
+
+# Safely load the model with weights_only=False (if you trust the source)
+saved_data = torch.load(full_model_path, map_location=torch.device('cpu'), weights_only=False)
 
 # Load BERT model and tokenizer
 model = BertModel.from_pretrained('bert-base-uncased')
