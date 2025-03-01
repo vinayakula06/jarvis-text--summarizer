@@ -1,75 +1,46 @@
-import streamlit as st
 import torch
 from transformers import BertTokenizer, BertModel
 import joblib
+from flask import Flask, request, jsonify, send_from_directory
 
 # Load the full model
-full_model_path = "bert_text_summarizer/full_model.pth"
-
-# Load the model safely with weights_only=False (ensure you trust the source)
-try:
-    saved_data = torch.load(full_model_path, map_location=torch.device('cpu'), weights_only=False)
-except Exception:
-    st.write("Error loading model. Please check the model file.")
-    st.stop()
+full_model_path = "full_model.pth"
+saved_data = torch.load(full_model_path, map_location=torch.device('cpu'))
 
 # Load BERT model and tokenizer
-model = BertModel.from_pretrained('bert_text_summarizer')
-try:
-    model.load_state_dict(saved_data['bert_model'], strict=False)
-    tokenizer = BertTokenizer.from_pretrained('bert_text_summarizer')
-except Exception:
-    st.write("Error loading BERT components. Please check the model file.")
-    st.stop()
+model = BertModel.from_pretrained('bert-base-uncased')
+model.load_state_dict(saved_data['bert_model'], strict=False)
+tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
 # Load LSA-based classifier
-classifier_path = "bert_text_summarizer/lsa_classifier.pkl"
-try:
-    classifier = joblib.load(classifier_path)
-    if not hasattr(classifier, 'predict'):
-        st.write("Loaded object is not a valid classifier.")
-        st.stop()
-    else:
-        st.write("Classifier loaded successfully.")
-except Exception:
-    st.write("Error loading LSA-based classifier from the saved model data.")
-    st.stop()
+Pipeline = saved_data['Pipeline']
 
-# Streamlit interface
-st.title("NLP Text Summarizer")
+# Initialize Flask app
+app = Flask(__name__)
 
-text = st.text_area("Enter text to summarize:")
+@app.route('/')
+def index():
+    return send_from_directory('.', 'index.html')
 
-if st.button("Summarize"):
-    if text:
-        # Tokenization
-        try:
-            inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
-        except Exception:
-            st.write("Error during tokenization.")
-            st.stop()
+@app.route('/predict', methods=['POST'])
+def predict():
+    data = request.json
+    text = data.get("text", "")
+    
+    # Tokenization
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+    
+    # BERT Model Output
+    with torch.no_grad():
+        outputs = model(**inputs)
+    
+    # Extract CLS token embedding
+    cls_embedding = outputs.last_hidden_state[:, 0, :].numpy()
+    
+    # Classifier prediction
+    prediction = Pipeline.predict(cls_embedding)
+    
+    return jsonify({"prediction": prediction.tolist()})
 
-        # BERT Model Output
-        try:
-            with torch.no_grad():
-                outputs = model(**inputs)
-        except Exception:
-            st.write("Error during BERT model inference.")
-            st.stop()
-
-        # Extract CLS token embedding
-        try:
-            cls_embedding = outputs.last_hidden_state[:, 0, :].numpy()
-            st.write(f"CLS Embedding shape: {cls_embedding.shape}")
-        except Exception:
-            st.write("Error extracting CLS token embedding.")
-            st.stop()
-
-        # Classifier prediction
-        try:
-            prediction = classifier.predict(cls_embedding)
-            st.write("Summary:", prediction.tolist())
-        except Exception:
-            st.write("Error during classification.")
-    else:
-        st.write("Please enter some text to summarize.")
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=80, debug=True)
