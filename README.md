@@ -1,3 +1,4 @@
+
 # Text Summarization Application
 
 A sophisticated Flask-based web application that delivers high-quality text summarization utilizing both BERT-based and LSA-based algorithms for optimal extraction of key information from documents.
@@ -118,8 +119,6 @@ The application leverages industry-standard libraries:
 For more information, updates, and additional tools, visit our official platform:
 [https://jarvis.senseacademia.com/](https://jarvis.senseacademia.com/)
 
-
 ## Development
 
 Designed and developed by VINAY
-
