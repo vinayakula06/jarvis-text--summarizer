@@ -114,11 +114,8 @@ The application leverages industry-standard libraries:
 - REST API implementation for enterprise integration
 - Multilingual processing capabilities
 
-## Official Website
 
-For more information, updates, and additional tools, visit our official platform:
-[https://jarvis.senseacademia.com/](https://jarvis.senseacademia.com/)
 
 ## Development
 
-Designed and developed by VINAY
+Designed and developed by VINAY AKULA
