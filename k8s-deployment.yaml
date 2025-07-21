@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jarvis-summarizer-deployment
+  labels:
+    app: jarvis-summarizer
+spec:
+  replicas: 1 # Start with 1 replica; can scale up later
+  selector:
+    matchLabels:
+      app: jarvis-summarizer
+  template:
+    metadata:
+      labels:
+        app: jarvis-summarizer
+    spec:
+      containers:
+      - name: jarvis-summarizer
+        image: vinayakula06/jarvis-text-summarizer:latest # <--- IMPORTANT: Replace with YOUR Docker Hub username
+        ports:
+        - containerPort: 5000
+        # Add resource requests/limits for production to ensure stability
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        env: # Environment variables for Datadog/Bugsnag if needed in app
+        - name: DD_AGENT_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: DD_LOGS_INJECTION
+          value: "true"
+        - name: BUGLSNAG_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: bugsnag-secrets
+              key: api-key
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jarvis-summarizer-service
+spec:
+  selector:
+    app: jarvis-summarizer
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+  type: NodePort # Use NodePort for local Minikube/Docker Desktop demo; use LoadBalancer for cloud Kubernetes

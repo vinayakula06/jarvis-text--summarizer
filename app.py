@@ -15,14 +15,36 @@ import logging
 import gc
 import time
 
+# --- Start of Datadog and Bugsnag Integration Imports ---
+# It's best practice to patch libraries as early as possible
+from ddtrace import patch_all
+import bugsnag
+from bugsnag.flask import handle_exceptions
+# --- End of Datadog and Bugsnag Integration Imports ---
+
+# --- Apply patch_all early, BEFORE Flask app initialization ---
+# This ensures that Flask and other libraries are instrumented correctly from the start.
+patch_all(logging=True, flask=True) # Patch logging and Flask for Datadog
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, 
                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                    handlers=[logging.FileHandler("app.log"), logging.StreamHandler()])
 logger = logging.getLogger(__name__)
 
-# Initialize Flask app with increased timeout
+# Initialize Flask app
 app = Flask(__name__)
+
+# --- Start of Bugsnag Configuration ---
+# Configure Bugsnag AFTER app initialization, but before routes are defined
+bugsnag.configure(
+    api_key=os.getenv('BUGSNAG_API_KEY'), # This comes from the Kubernetes Secret
+    project_root=os.path.dirname(os.path.abspath(__file__)),
+    release_stage=os.getenv('FLASK_ENV', 'development') # Use FLASK_ENV or default to development
+)
+# Register Bugsnag to handle Flask exceptions
+handle_exceptions(app)
+# --- End of Bugsnag Configuration ---
 
 # Set the nltk_data directory to a location inside your virtual environment
 nltk_data_dir = os.path.join(os.getenv('VIRTUAL_ENV', os.path.dirname(os.path.abspath(__file__))), 'nltk_data')
@@ -182,7 +204,7 @@ def lsa_summarizer(text, num_sentences=10):
         logger.error(f"Error in LSA summarization: {e}")
         # Return first few sentences as fallback
         sentences = segment_text(text)
-        return sentences[:min(len(sentences), num_sentences)]
+        return sentences[:min(len(sentences), num_units)]
 
 def save_model(m, t, pipeline):
     """
@@ -231,13 +253,6 @@ def load_saved_model():
     except Exception as e:
         logger.error(f"Error loading models: {e}")
         return False
-
-# Create the LSA pipeline
-lsa_pipeline = Pipeline([
-    ('segmentation', segment_text),
-    ('lsa_summarization', lsa_summarizer)
-])
-
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
@@ -312,6 +327,18 @@ def index():
     return render_template('index.html')
 
 if __name__ == '__main__':
+    # --- Start of Datadog Tracing Configuration ---
+    # Ensure tracer is configured before running the app
+    from ddtrace import tracer
+    # `patch_all` is already called at the top of the file
+    # `os` import should be done at the top if not already
+    
+    tracer.configure(
+        hostname=os.getenv('DD_AGENT_HOST', 'localhost'), # DD_AGENT_HOST is set in K8s deployment
+        port=8126
+    )
+    # --- End of Datadog Tracing Configuration ---
+
     # Check if models exist, and load them if they do
     if os.path.exists(FULL_MODEL_PATH) and os.path.exists(LSA_PIPELINE_PATH):
         load_saved_model()
